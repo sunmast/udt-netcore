@@ -3,7 +3,8 @@
   "buildOptions": {
     "debugType": "portable",
     "emitEntryPoint": false,
-    "outputName": "udt"
+    "outputName": "udt",
+    "allowUnsafe": true
   },
   "dependencies": {},
   "frameworks": {

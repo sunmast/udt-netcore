@@ -1,3 +1,5 @@
+using System;
+using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -5,8 +7,6 @@ using System.Text;
 namespace LibUdt
 {
     internal enum UdtSockHandle : int { }
-
-    internal enum UdpSockHandle : int { }
 
     internal enum SysSockHandle : int { }
 
@@ -40,40 +40,110 @@ namespace LibUdt
         RecvData     // size of data available for recv
     }
 
-    // public enum AF : int
-    // {
-    //     Unspecified = 0,
-    //     IPv4 = 2,
-    //     IPv6 = 23
-    // }
-
-    // public enum Protocol : int
-    // {
-    //     IPv4 = 4,
-    //     IPv6 = 41
-    // }
-
-    // public enum SockType : int
-    // {
-    //     Stream = 1
-    // }
-
     [StructLayout(LayoutKind.Sequential)]
-    public struct SockAddr
+    unsafe internal struct SockAddr
     {
-        public const int DataLength = 14;
-
-        public ushort AddressFamily;
-
-        [MarshalAsAttribute(UnmanagedType.ByValArray, SizeConst = DataLength)]
-        public byte[] Data;
-
-        public SockAddr(AddressFamily af, byte[] bytes)
+        [StructLayout(LayoutKind.Sequential)]
+        private struct SockAddrV4
         {
-            this.AddressFamily = (ushort)af;
-            this.Data = new byte[DataLength];
+            [MarshalAsAttribute(UnmanagedType.ByValArray, SizeConst = 4)]
+            internal byte[] Address;
 
-            bytes.CopyTo(this.Data, 0);
+            internal SockAddrV4(IPEndPoint endpoint)
+            {
+                this.Address = endpoint.Address.GetAddressBytes();
+            }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct SockAddrV6
+        {
+            internal uint FlowInfo;
+
+            [MarshalAsAttribute(UnmanagedType.ByValArray, SizeConst = 16)]
+            internal byte[] Address;
+
+            private uint ScopeID;
+
+            internal SockAddrV6(IPEndPoint endpoint)
+            {
+                this.FlowInfo = 0;
+                this.Address = endpoint.Address.GetAddressBytes();
+                this.ScopeID = 0;
+            }
+        }
+
+        private ushort AF;
+
+        private ushort Port;
+
+        [MarshalAsAttribute(UnmanagedType.ByValArray, SizeConst=24)] // sizeof(SockAddrV6)
+        private byte[] Address;
+
+        internal int Size
+        {
+            get
+            {
+                if (this.AF == (ushort)AddressFamily.InterNetwork)
+                {
+                    return 16; // sizeof(sockaddr_in)
+                }
+                else if (this.AF == (ushort)AddressFamily.InterNetworkV6)
+                {
+                    return 28; // sizeof(sockaddr_in6)
+                }
+                else
+                {
+                    throw new NotSupportedException();
+                }
+            }
+        }
+
+        internal SockAddr(IPEndPoint endpoint)
+        {
+            this.AF = (ushort)endpoint.AddressFamily;
+            this.Port = (ushort)endpoint.Port;
+
+            byte[] address = new byte[28];
+            fixed (byte* p = address)
+            {
+                if (endpoint.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    Marshal.StructureToPtr(new SockAddrV4(endpoint), new IntPtr(p), false);
+
+                }
+                else if (endpoint.AddressFamily == AddressFamily.InterNetworkV6)
+                {
+                    Marshal.StructureToPtr(new SockAddrV6(endpoint), new IntPtr(p), false);
+                }
+                else
+                {
+                    throw new NotSupportedException();
+                }
+            }
+
+            this.Address = address;
+        }
+
+        internal IPEndPoint ToIPEndPoint()
+        {
+            fixed(byte* p = this.Address)
+            {
+                if (this.AF == (ushort)AddressFamily.InterNetwork)
+                {
+                    SockAddrV4 addrV4 = Marshal.PtrToStructure<SockAddrV4>(new IntPtr(p));
+                    return new IPEndPoint(new IPAddress(addrV4.Address), this.Port);
+                }
+                else if (this.AF == (ushort)AddressFamily.InterNetworkV6)
+                {
+                    SockAddrV6 addrV6 = Marshal.PtrToStructure<SockAddrV6>(new IntPtr(p));
+                    return new IPEndPoint(new IPAddress(addrV6.Address), this.Port);
+                }
+                else
+                {
+                    throw new NotSupportedException();
+                }
+            }
         }
     }
 
@@ -122,7 +192,7 @@ namespace LibUdt
         public int byteAvailRcvBuf;                 // available UDT receiver buffer size
     }
 
-    internal static class API
+    internal static class UDT
     {
         [DllImport("libudt", EntryPoint = "udt_startup")]
         internal static extern int Startup();
@@ -137,7 +207,7 @@ namespace LibUdt
         internal static extern int Bind(UdtSockHandle u, ref SockAddr name, int namelen);
 
         [DllImport("libudt", EntryPoint = "udt_listen")]
-        internal static extern int Listen(int u, int backlog);
+        internal static extern int Listen(UdtSockHandle u, int backlog);
 
         [DllImport("libudt", EntryPoint = "udt_accept")]
         internal static extern UdtSockHandle Accept(UdtSockHandle u, out SockAddr name, out int namelen);
