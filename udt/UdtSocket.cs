@@ -82,32 +82,40 @@ namespace LibUdt
             E(UDT.Connect(this.handle, ref addr, addr.Size));
         }
 
-        public void Send(byte[] bytes)
+        public int Send(byte[] bytes)
         {
-            E(UDT.Send(this.handle, bytes, bytes.Length, 0));
+            return UDT.Send(this.handle, bytes, bytes.Length, 0);
         }
 
-        public void Receive(byte[] bytes, int length)
+        public int Receive(byte[] bytes, int length)
         {
-            E(UDT.Recv(this.handle, bytes, length, 0));
+            return UDT.Recv(this.handle, bytes, length, 0);
         }
 
         public void SendMessage(string message)
         {
-            E(UDT.SendMsg(this.handle, message, message.Length, -1, true));
+            int len = UDT.SendMsg(this.handle, message, message.Length, -1, true);
+            if (len != message.Length)
+            {
+                throw new UdtException();
+            }
         }
 
         public string ReceiveMessage()
         {
             buf.Clear();
-            E(UDT.RecvMsg(this.handle, buf, buf.Capacity));
+            int len = UDT.RecvMsg(this.handle, buf, buf.Capacity);
+            if (len != buf.Length)
+            {
+                throw new UdtException();
+            }
 
             return buf.ToString();
         }
 
         public void Dispose()
         {
-            E(UDT.Close(this.handle));
+            UDT.Close(this.handle);
         }
 
         void CheckAddrVer(AddressFamily af)

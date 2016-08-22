@@ -286,8 +286,8 @@ namespace LibUdt
         [DllImport("libudt", EntryPoint = "udt_getlasterror_code")]
         internal static extern int GetLastErrorCode();
 
-        [DllImport("libudt", EntryPoint = "udt_getlasterror_desc", CharSet = CharSet.Ansi)]
-        internal static extern string GetLastErrorDesc();
+        [DllImport("libudt", EntryPoint = "udt_getlasterror_desc")]
+        internal static extern IntPtr GetLastErrorDesc();
 
         [DllImport("libudt", EntryPoint = "udt_perfmon")]
         internal static extern int PerfMon(UdtSockHandle u, out UdtPerfInfo perf, bool clear = true);

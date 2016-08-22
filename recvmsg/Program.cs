@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using LibUdt;
 
 namespace ConsoleApplication
@@ -10,24 +9,20 @@ namespace ConsoleApplication
     {
         public static void Main(string[] args)
         {
-            using (UdtSocket server = new UdtSocket(ProtocolType.IPv4, SocketType.Stream))
+            using (UdtSocket server = new UdtSocket(ProtocolType.IPv4, SocketType.Dgram))
             {
                 server.Bind(new IPEndPoint(IPAddress.Loopback, 8888));
                 server.Listen(10);
 
                 IPEndPoint remoteEp;
-                using (UdtSocket us = server.Accept(out remoteEp))
+
+                while (true)
                 {
-                    byte[] buf = new byte[1024];
-                    us.Receive(buf, 4);
-
-                    int length = BitConverter.ToInt32(buf, 0);
-                    us.Receive(buf, length);
-
-                    string msg = Encoding.UTF8.GetString(buf, 0, length);
-                    Console.WriteLine(msg);
-
-                    Console.ReadLine();
+                    using (UdtSocket us = server.Accept(out remoteEp))
+                    {
+                        string msg = us.ReceiveMessage();
+                        Console.WriteLine(msg);
+                    }
                 }
             }
         }
