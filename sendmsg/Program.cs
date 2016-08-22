@@ -12,7 +12,12 @@ namespace ConsoleApplication
             using (UdtSocket client = new UdtSocket(ProtocolType.IPv4, SocketType.Dgram))
             {
                 client.Connect(new IPEndPoint(IPAddress.Loopback, 8888));
-                client.SendMessage("Hello UDT! " + DateTime.Now.ToString());
+
+                while (true)
+                {
+                    client.SendMessage("Hello 你好 UDT! " + DateTime.Now.ToString());
+                    Console.ReadLine();
+                }
             }
         }
     }

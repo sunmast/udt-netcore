@@ -10,7 +10,9 @@ namespace LibUdt
     {
         readonly UdtSockHandle handle;
         readonly AddressFamily af;
-        StringBuilder buf;
+
+        bool inOrder = true;
+        int ttl = -1;
 
         public UdtState State
         {
@@ -22,13 +24,24 @@ namespace LibUdt
             E(UDT.Startup());
         }
 
-        private UdtSocket(UdtSockHandle handle, int bufSize)
+        public bool InOrder
         {
-            this.handle = handle;
-            this.buf = new StringBuilder(bufSize);
+            get { return this.inOrder; }
+            set { this.inOrder = value; }
         }
 
-        public UdtSocket(ProtocolType protocol, SocketType socketType, int bufSize = 4096)
+        public int TimeToLive
+        {
+            get { return this.ttl; }
+            set { this.ttl = value; }
+        }
+
+        private UdtSocket(UdtSockHandle handle)
+        {
+            this.handle = handle;
+        }
+
+        public UdtSocket(ProtocolType protocol, SocketType socketType)
         {
             if (protocol == ProtocolType.IPv4)
             {
@@ -44,7 +57,6 @@ namespace LibUdt
             }
 
             this.handle = E(UDT.CreateSocket(this.af, socketType, protocol));
-            this.buf = new StringBuilder(bufSize);
         }
 
         public void Bind(IPEndPoint localEndpoint)
@@ -71,7 +83,7 @@ namespace LibUdt
             remoteEndpoint = addr.ToIPEndPoint();
             CheckAddrVer(remoteEndpoint.AddressFamily);
 
-            return new UdtSocket(h, this.buf.Capacity);
+            return new UdtSocket(h);
         }
 
         public void Connect(IPEndPoint remoteEndpoint)
@@ -82,35 +94,45 @@ namespace LibUdt
             E(UDT.Connect(this.handle, ref addr, addr.Size));
         }
 
-        public int Send(byte[] bytes)
+        public int Send(byte[] buf, int length)
         {
-            return UDT.Send(this.handle, bytes, bytes.Length, 0);
+            return UDT.Send(this.handle, buf, length, 0);
         }
 
-        public int Receive(byte[] bytes, int length)
+        public int Receive(byte[] buf)
         {
-            return UDT.Recv(this.handle, bytes, length, 0);
+            return UDT.Recv(this.handle, buf, buf.Length, 0);
         }
 
         public void SendMessage(string message)
         {
-            int len = UDT.SendMsg(this.handle, message, message.Length, -1, true);
-            if (len != message.Length)
+            byte[] bytes = Encoding.UTF8.GetBytes(message);
+            this.SendBytes(bytes, bytes.Length);
+        }
+
+        public string ReceiveMessage(byte[] buf)
+        {
+            int len = this.ReceiveBytes(buf);
+            if (len < 0)
+            {
+                return null;
+            }
+
+            return Encoding.UTF8.GetString(buf, 0, len);
+        }
+
+        public void SendBytes(byte[] buf, int length)
+        {
+            int len = UDT.SendBytes(this.handle, buf, length, this.ttl, this.inOrder);
+            if (len != length)
             {
                 throw new UdtException();
             }
         }
 
-        public string ReceiveMessage()
+        public int ReceiveBytes(byte[] buf)
         {
-            buf.Clear();
-            int len = UDT.RecvMsg(this.handle, buf, buf.Capacity);
-            if (len != buf.Length)
-            {
-                throw new UdtException();
-            }
-
-            return buf.ToString();
+            return UDT.RecvBytes(this.handle, buf, buf.Length);
         }
 
         public void Dispose()

@@ -236,11 +236,17 @@ namespace LibUdt
         [DllImport("libudt", EntryPoint = "udt_recv")]
         internal static extern int Recv(UdtSockHandle u, byte[] buf, int len, int flags);
 
-        [DllImport("libudt", EntryPoint = "udt_sendmsg", CharSet = CharSet.Ansi)]
-        internal static extern int SendMsg(UdtSockHandle u, string buf, int len, int ttl = -1, bool inorder = false);
+        // [DllImport("libudt", EntryPoint = "udt_sendmsg", CharSet = CharSet.Ansi)]
+        // internal static extern int SendMsg(UdtSockHandle u, string buf, int len, int ttl = -1, bool inorder = false);
 
-        [DllImport("libudt", EntryPoint = "udt_recvmsg", CharSet = CharSet.Ansi)]
-        internal static extern int RecvMsg(UdtSockHandle u, StringBuilder buf, int len);
+        // [DllImport("libudt", EntryPoint = "udt_recvmsg", CharSet = CharSet.Ansi)]
+        // internal static extern int RecvMsg(UdtSockHandle u, StringBuilder buf, int len);
+
+        [DllImport("libudt", EntryPoint = "udt_sendmsg")]
+        internal static extern int SendBytes(UdtSockHandle u, byte[] buf, int len, int ttl = -1, bool inorder = false);
+
+        [DllImport("libudt", EntryPoint = "udt_recvmsg")]
+        internal static extern int RecvBytes(UdtSockHandle u, byte[] buf, int len);
 
         // [DllImport("libudt", EntryPoint = "udt_sendfile")]
         // internal static extern long SendFile(UDTSOCKET u, std::fstream& ifs, long& offset, long size, int block = 364000);

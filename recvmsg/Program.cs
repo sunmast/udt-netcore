@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using LibUdt;
 
 namespace ConsoleApplication
@@ -14,17 +15,33 @@ namespace ConsoleApplication
                 server.Bind(new IPEndPoint(IPAddress.Loopback, 8888));
                 server.Listen(10);
 
-                IPEndPoint remoteEp;
-
                 while (true)
                 {
-                    using (UdtSocket us = server.Accept(out remoteEp))
-                    {
-                        string msg = us.ReceiveMessage();
-                        Console.WriteLine(msg);
-                    }
+                    IPEndPoint remoteEp;
+                    UdtSocket socket = server.Accept(out remoteEp);
+                    ThreadPool.QueueUserWorkItem(ReceiveMessage, new object[] { socket, remoteEp });
                 }
             }
+        }
+
+        static void ReceiveMessage(object state)
+        {
+            object[] objects = (object[])state;
+
+            using (UdtSocket socket = (UdtSocket)objects[0])
+            {
+                IPEndPoint remoteEp = (IPEndPoint)objects[1];
+
+                byte[] buf = new byte[100];
+                string msg;
+
+                while ((msg = socket.ReceiveMessage(buf)) != null)
+                {
+                    Console.WriteLine("{0} from {1}:{2}", msg, remoteEp.Address, remoteEp.Port);
+                }
+            }
+
+            Console.WriteLine("Worker thread {0} has exited", Thread.CurrentThread.ManagedThreadId);
         }
     }
 }
